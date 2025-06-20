@@ -1,59 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Deteksi Benda dengan TensorFlow.js</title>
+  <meta charset="UTF-8">
+  <title>Hitung Benda Real-time</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
-  <link href=style.css rel="stylesheet">
   <style>
-    body {
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      background-color: #f0f0f0;
-      position: relative;
-      
-    
+    body { margin: 0; font-family: sans-serif; background: #000; color: #fff; }
+    video, canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; }
+    #counter {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 18px;
+      z-index: 2;
     }
-    .navbar {
-      width: 100%;
-      background-color: #333;
-      color: white;
-      padding: 10px;
-      text-align: center;
-      position: fixed;
-    }
-    .navbar a {
-      color: red;
-      text-decoration: none;
-    }
-  
-    video{
-      display:none;
-    }
-    
-    canvas{
-      margin-top: 60px; /* beri jarak dari navbar */
-      border: 2px solid black;
-    }
-      
   </style>
+</head>
 <body>
-  <nav class="navbar">
-    <div class="navbar-brand">
-      <a class="navbar-item" href="#">Deteksi Benda</a>
-    </div>
-    
-  <video id="video" width="640" height="480" autoplay muted></video>
-  <canvas id="canvas" width="640" height="480"></canvas>
+  <div id="counter">🔄 Memuat model...</div>
+  <video id="video" autoplay muted></video>
+  <canvas id="canvas"></canvas>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+    const counter = document.getElementById('counter');
+    let model;
 
     async function setupCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -63,33 +39,40 @@
       });
     }
 
-    async function runDetection() {
-      await setupCamera();
-      const model = await cocoSsd.load();
-      video.play();
+    async function detectObjects() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
 
-      async function detectFrame() {
-        const predictions = await model.detect(video);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const predictions = await model.detect(video);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        predictions.forEach(pred => {
-          const [x, y, width, height] = pred.bbox;
-          ctx.strokeStyle = "lime";
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x, y, width, height);
-          ctx.fillStyle = "lime";
-          ctx.font = "16px Arial";
-          ctx.fillText(`${pred.class} (${Math.round(pred.score * 100)}%)`, x, y > 10 ? y - 5 : 10);
-        });
+      let count = predictions.length;
 
-        requestAnimationFrame(detectFrame);
-      }
+      predictions.forEach(pred => {
+        const [x, y, width, height] = pred.bbox;
+        ctx.strokeStyle = "lime";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+        ctx.fillStyle = "lime";
+        ctx.font = "16px sans-serif";
+        ctx.fillText(pred.class, x, y > 10 ? y - 5 : y + 20);
+      });
 
-      detectFrame();
+      counter.innerText = `📦 Total benda terdeteksi: ${count}`;
+      requestAnimationFrame(detectObjects);
     }
 
-    runDetection();
+    async function main() {
+      await setupCamera();
+      video.play();
+      model = await cocoSsd.load();
+      counter.innerText = "✅ Model siap - mendeteksi benda...";
+      detectObjects();
+    }
+
+    main();
   </script>
 </body>
 </html>
+
